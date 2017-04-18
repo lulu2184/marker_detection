@@ -29,7 +29,7 @@ class EdgeDetector:
 		subRegion = cv2.cvtColor(self.img[x-1:x+2, y-1:y+2], cv2.COLOR_RGB2GRAY)
 		return normalize([np.array([np.sum(sobel * subRegion), np.sum(sobel.T * subRegion)], dtype = 'float64')])[0]
 
-	# Consider about the situation that the region exceed the bound of image
+	# TODO: Consider about the situation that the region exceed the bound of image
 	def findEdgelsInRegion(self, left, top, width, height):
 		edgelList = []
 		THREDSHOLD = np.array([16 * 16]  * 3)
@@ -42,6 +42,7 @@ class EdgeDetector:
 				current = (current if allLessThan(THREDSHOLD, current) else np.array([0] * 3))
 				if (allLessThan(prev2, prev1) and allLessThan(current, prev1)):
 					edgelList.append(Edgel(x, y - 1, self.calculateSlope(x, y - 1)))
+					print 'y', x, y - 1, prev2, prev1, current
 				prev2 = prev1
 				prev1 = current
 
@@ -53,6 +54,7 @@ class EdgeDetector:
 				current = (current if allLessThan(THREDSHOLD, current) else np.array([0] * 3))
 				if (allLessThan(prev2, prev1) and allLessThan(current, prev1)):
 					edgelList.append(Edgel(x - 1, y, self.calculateSlope(x - 1, y)))
+					print 'x', x - 1, y, prev2, prev1, current
 				prev2 = prev1
 				prev1 = current
 		return edgelList
@@ -62,19 +64,21 @@ class EdgeDetector:
 		REGION_WIDTH = 5
 		REGION_HEIGHT = 5
 
-		edgelList = []
+		if self.debugMode:
+			edgelImage = self.img
+
 		for x in range(2, self.img.shape[0] - REGION_WIDTH, REGION_WIDTH):
 			for y in range(2, self.img.shape[1] - REGION_HEIGHT, REGION_HEIGHT):
-				edgelList.extend(self.findEdgelsInRegion(x, y, REGION_WIDTH, REGION_HEIGHT))
+				edgelList = self.findEdgelsInRegion(x, y, REGION_WIDTH, REGION_HEIGHT)
+				if self.debugMode:
+					for edgel in edgelList:
+						cv2.circle(edgelImage, (edgel.Y, edgel.X), 1, (0, 255, 0))
 
 		if self.debugMode:
-			debugImage = self.img
-			for edgel in edgelList:
-				cv2.circle(debugImage, (edgel.Y, edgel.X), 1, (0, 255, 0))
-			cv2.imshow('find edgels', debugImage)
+			cv2.imshow('find edgels', edgelImage)
+			cv2.imwrite('edgel.jpg', cv2.resize(edgelImage, (0, 0), fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC))
 			cv2.waitKey(0)
-		return edgelList
-
+		# return edgelList
 
 def allLessThan(arr1, arr2):
-	return np.max([e1 < e2 for e1, e2 in zip(arr1, arr2)])
+	return np.min([e1 < e2 for e1, e2 in zip(arr1, arr2)])
