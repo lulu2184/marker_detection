@@ -120,18 +120,23 @@ class EdgeDetector:
 		if np.dot(startSeg.slope, endSeg.slope) < 0.95 or np.dot(startSeg.slope, slope) < 0.95:
 			return False
 		p = startSeg.end.toPoint()
-		normal = np.array([slope[1], -slope[0]])
 		for step in range(int(length)):
 			p = p + slope
-			x, y = int(p[0]), int(p[1])
-			if allLessThan(self.edgeKernel(x, y, self.__VERTICAL), self.EDGEL_THREDSHOLD / 2) \
-				and allLessThan(self.edgeKernel(x, y, self.__HORIZONTAL), self.EDGEL_THREDSHOLD / 2):
-				return False
-			if np.dot(self.calculateSlope(x, y), slope) < 0.38 \
-				and np.dot(self.calculateSlope(int(x + normal[0]), int(y + normal[1])), slope) < 0.38 \
-				and np.dot(self.calculateSlope(int(x - normal[0]), int(y - normal[1])), slope) < 0.38:
-				return False
+			if not self.extend(startSeg, slope, p): return False
 
+		return True
+
+	def extend(self, line, slope, p):
+		x, y = int(p[0]), int(p[1])
+		if x < 0 or x > self.img.shape[0] or y < 0 or y > self.img.shape[1]: return False
+		normal = np.array([slope[1], -slope[0]])
+		if allLessThan(self.edgeKernel(x, y, self.__VERTICAL), self.EDGEL_THREDSHOLD / 2) \
+			and allLessThan(self.edgeKernel(x, y, self.__HORIZONTAL), self.EDGEL_THREDSHOLD / 2):
+			return False
+		if np.dot(self.calculateSlope(x, y), slope) < 0.38 \
+			and np.dot(self.calculateSlope(int(x + normal[0]), int(y + normal[1])), slope) < 0.38 \
+			and np.dot(self.calculateSlope(int(x - normal[0]), int(y - normal[1])), slope) < 0.38:
+			return False
 		return True
 
 	def mergeLineSegments(self, lineSegmentList):
@@ -156,6 +161,19 @@ class EdgeDetector:
 				mergedSegList.append(LineSegment(startSegment.start, lineSegmentList[p].end))
 		return mergedSegList
 
+	def extendLines(self, lineList):
+		total = len(lineList)
+		for i, line in enumerate(lineList):
+			print 'extend ', i, '/', total
+			p = line.end.toPoint()
+			while self.extend(line, line.slope, p + line.slope):
+				p = p + line.slope
+			line.end = Edgel(int(p[0]), int(p[1]), line.end.slope)
+			p = line.start.toPoint()
+			while self.extend(line, line.slope, p - line.slope):
+				p = p - line.slope
+			line.start = Edgel(int(p[0]), int(p[1]), line.start.slope)
+
 	@classmethod
 	def drawLine(self, lineSegmentList, image):
 		for seg in lineSegmentList:
@@ -171,6 +189,7 @@ class EdgeDetector:
 			edgelImage = deepcopy(self.img)
 			self.segImage = deepcopy(self.img)
 			self.mergedLineImage = deepcopy(self.img)
+			self.extendImage = deepcopy(self.img)
 
 		lineSegments = []
 
@@ -196,6 +215,11 @@ class EdgeDetector:
 			cv2.imwrite('result/edgel.jpg', cv2.resize(edgelImage, (0, 0), fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC))
 			cv2.imwrite('result/segments.jpg', cv2.resize(self.segImage, (0,0), fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC))
 			cv2.imwrite('result/mergedLineImage.jpg', cv2.resize(self.mergedLineImage, (0,0), fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC))
+
+		self.extendLines(mergedLines)
+		if self.debugMode:
+			self.drawLine(mergedLines, self.extendImage)
+			cv2.imwrite('result/extend.jpg', cv2.resize(self.extendImage, (0,0), fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC))
 		# return edgelList
 
 def allLessThan(arr1, arr2):
