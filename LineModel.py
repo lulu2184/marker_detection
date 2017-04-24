@@ -12,6 +12,7 @@ def atLine(start, end, p):
 	return dist < LINE_DIST_THRESHOLD
 
 def ransac(edgelsList, iteration):
+	MIN_INLIERS = 5
 	lineSegmentList = []
 
 	while True:
@@ -49,6 +50,35 @@ def ransac(edgelsList, iteration):
 			break
 
 	return lineSegmentList
+
+def lineCompatible(startSeg, endSeg):
+	if startSeg.end.distance(endSeg.start) > 25 * 25:
+		return False
+	if np.dot(startSeg.slope, endSeg.slope) < 0.99 or np.dot(startSeg.slope, normalize([(endSeg.start - startSeg.end).toTuple()])[0]) < 0.99:
+		return False
+
+
+def mergeLineSegments(lineSegmentList):
+	next = [-1 for n in range(len(lineSegmentList))]
+	startFlag = [True for n in range(len(lineSegmentList))]
+	for i, startSegment in enumerate(lineSegmentList):
+		for j, endSegment in enumerate(lineSegmentList):
+			if not i == j and lineCompatible(startSegment, endSegment):
+				if next[i] >= 0:
+					print "Merge one segment to more than one segments!"
+				else:
+					next[i] = j
+					startFlag[j] = False
+
+	mergedSegList = []
+	for i, startSegment in enumerate(lineSegmentList):
+		if startFlag[i]:
+			p = i
+			while next[p] >= 0:
+				p = next[p]
+			mergedSegList.append(LineSegment(startSegment.start, lineSegmentList[p].end))
+	return mergedSegList
+
 
 
 

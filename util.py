@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.preprocessing import normalize
 
 ORI_COMP_THREDSHOLD = 0.38
 
@@ -23,9 +24,16 @@ class Edgel:
 	def orientationCompatible(self, other):
 		return np.dot(self.toPoint(), other.toPoint()) > ORI_COMP_THREDSHOLD
 
+	def distance(self, other):
+		return np.linalg.norm((other - self).toPoint())
+
 class LineSegment:
 
-	def __init__(self, start, end, slope):
+	#start, end: Edgel
+	def __init__(self, start, end, slope = None):
 		self.start = start
 		self.end = end
-		self.slope = slope
+		if slope is None:
+			self.slope = normalize([np.array([end.X - start.X, end.Y - start.Y])])[0]
+		else:
+			self.slope = slope
